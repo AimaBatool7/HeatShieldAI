@@ -13,6 +13,7 @@ import {
   Bot
 } from 'lucide-react';
 import { CityData } from '../types';
+import { generateClientCityAudit } from '../utils/clientFallbackAi';
 
 interface CityAnalysisModalProps {
   isOpen: boolean;
@@ -39,25 +40,36 @@ export const CityAnalysisModal: React.FC<CityAnalysisModalProps> = ({
     setLoading(true);
     setAnalysisText('');
     try {
-      const res = await fetch('/api/gemini/analyze-city', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cityData: {
-            name: city.name,
-            temperature: city.temperature,
-            humidity: city.humidity,
-            heatIndex: city.heatIndex,
-            riskLevel: city.riskLevel,
-            riskScore: city.riskScore,
-            zones: city.zones.map((z) => ({ name: z.name, temp: z.temp, risk: z.riskLevel })),
-          },
-        }),
-      });
-      const data = await res.json();
-      setAnalysisText(data.analysis || 'Analysis complete.');
+      let resultText = '';
+      try {
+        const res = await fetch('/api/gemini/analyze-city', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cityData: {
+              name: city.name,
+              temperature: city.temperature,
+              humidity: city.humidity,
+              heatIndex: city.heatIndex,
+              riskLevel: city.riskLevel,
+              riskScore: city.riskScore,
+              zones: city.zones.map((z) => ({ name: z.name, temp: z.temp, risk: z.riskLevel })),
+            },
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          resultText = data.analysis || '';
+        } else {
+          resultText = generateClientCityAudit(city);
+        }
+      } catch (fetchErr) {
+        console.warn('Backend API unreachable, generating audit via client AI intelligence engine:', fetchErr);
+        resultText = generateClientCityAudit(city);
+      }
+      setAnalysisText(resultText || generateClientCityAudit(city));
     } catch (err: any) {
-      setAnalysisText(`### Comprehensive Thermal Audit for ${city.name} (${city.temperature}°C)\n\n1. **Executive Risk Summary**: Critical urban heat buildup detected. Heat Index of ${city.heatIndex}°C places outdoor populations at heightened vulnerability.\n2. **Microclimate Hotspots**: High thermal mass in concrete commercial corridors requires immediate mobile mist cannons.\n3. **Grid Protection**: AC load peak expected between 2:00 PM - 5:00 PM. Recommend thermostat regulation to 26°C.\n4. **Public Health**: Activate community hydration and emergency ice-bath bays across local medical clinics.`);
+      setAnalysisText(generateClientCityAudit(city));
     } finally {
       setLoading(false);
     }

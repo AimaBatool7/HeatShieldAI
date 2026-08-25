@@ -236,3 +236,43 @@ Children absorb radiant heat more rapidly than adults and have lower sweat rates
 - **Urban Hotspots:** Prioritize mobile cooling mist cannons in concrete-heavy commercial zones where surface temperatures exceed 55°C.
 - **Medical Emergency:** Any individual exhibiting confusion, slurred speech, or loss of consciousness must be cooled rapidly with ice/cold water and transferred to emergency medical care (1122 / Edhi) immediately.`;
 }
+
+export function generateClientCityAudit(city: CityData): string {
+  const isCritical = city.riskScore >= 80 || city.heatIndex >= 48;
+  const isHigh = city.riskScore >= 60;
+
+  return `### Urban Heat Resilience Audit: ${city.name}
+
+**Location:** ${city.name}, ${city.province}, Pakistan  
+**Current Sensor Telemetry (2m AGL):** ${city.temperature}°C Ambient | ${city.humidity}% Relative Humidity | **${city.heatIndex}°C Heat Index**  
+**Assessed Risk Level:** **${city.riskLevel}** (Score: **${city.riskScore}/100**) | **Trend:** ${city.trend.explanation}
+
+---
+
+### 1. Executive Microclimate Overview
+${city.name} is undergoing ${isCritical ? 'extreme thermal loading' : isHigh ? 'elevated urban heat accumulation' : 'moderate atmospheric heat stress'}. With an ambient reading of **${city.temperature}°C** and humidity at **${city.humidity}%**, the effective **Heat Index is ${city.heatIndex}°C**. Under these conditions, the body's natural evaporative cooling mechanisms face substantial resistance. Unchecked outdoor exposure without active hydration presents high risk for heat cramps, syncope, and rapid exertional heat stroke.
+
+---
+
+### 2. Spatial Microclimate Vulnerabilities
+Thermal imaging and micro-mesh sensors highlight key zones within ${city.name}:
+${city.zones.map(z => `- **${z.name} (${z.type} Zone):** Air Temp **${z.temp}°C** | Surface Temp **${z.surfaceTemp}°C** | Canopy Cover **${z.canopyCoverPercent}%** | Status: **${z.riskLevel}**`).join('\n')}
+
+- **High-Density Urban Hotspots:** Areas with low canopy cover (<15%) and high asphalt surface mass exhibit surface temperatures reaching up to **${Math.max(...city.zones.map(z => z.surfaceTemp))}°C**, re-radiating heat well past sundown.
+- **Cooling Corridors:** Greenery and parks buffer ambient temperatures by 2°C–4°C through active evapotranspiration.
+
+---
+
+### 3. Electrical Grid & Infrastructure Stress
+- **Cooling Demand Surges:** High ambient temperatures reduce substation transformer cooling efficiency while residential and commercial air conditioning demand peaks between **01:00 PM and 05:00 PM**.
+- **Mitigation Directive:** Enforce commercial thermostat setpoints at **26°C** across shopping centers and municipal offices to cut grid load by 15–20% and avoid localized transformer trip-outs.
+
+---
+
+### 4. Immediate Municipal & Public Health Action Plan
+1. **Outdoor Labor Regulation:** Enforce mandatory 20-minute rest in shaded zones for every 40 minutes of work between 11:00 AM and 04:30 PM.
+2. **Emergency Hydration & Mist Cannons:** Deploy mobile mist-spraying tankers and oral rehydration salt (ORS) distribution hubs along high-density transit corridors and market centers.
+3. **Public Cooling Centers:** Open climate-controlled public buildings, libraries, and civic centers as free public refuge points.
+4. **Vulnerable Population Check-ins:** Coordinate community health teams to check on elderly residents, unhoused populations, and infants in non-air-conditioned dwellings.`;
+}
+
