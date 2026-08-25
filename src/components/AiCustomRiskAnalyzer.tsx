@@ -27,6 +27,7 @@ import {
   Compass
 } from 'lucide-react';
 import { CustomScenarioInput, CustomScenarioResult, ExtremeAlert, RiskLevel } from '../types';
+import { computeClientCustomRisk } from '../utils/clientFallbackAi';
 
 interface AiCustomRiskAnalyzerProps {
   currentCityName?: string;
@@ -136,23 +137,32 @@ export const AiCustomRiskAnalyzer: React.FC<AiCustomRiskAnalyzerProps> = ({
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch('/api/gemini/analyze-custom-risk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+      let analysisData: CustomScenarioResult | null = null;
+      try {
+        const res = await fetch('/api/gemini/analyze-custom-risk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
 
-      if (!res.ok) {
-        throw new Error(`Server responded with status: ${res.status}`);
+        if (res.ok) {
+          analysisData = await res.json();
+        } else {
+          console.warn('Backend API returned non-OK status, calculating via client engine...');
+          analysisData = computeClientCustomRisk(formData);
+        }
+      } catch (fetchErr) {
+        console.warn('Backend unreachable (Static/GitHub Pages mode), calculating via client AI engine:', fetchErr);
+        analysisData = computeClientCustomRisk(formData);
       }
 
-      const data: CustomScenarioResult = await res.json();
-      setResult(data);
+      if (analysisData) {
+        setResult(analysisData);
+      }
     } catch (err: any) {
       console.error('Custom risk analysis error:', err);
-      setErrorMsg(
-        err?.message || 'Unable to connect to Gemini AI. Please check server status and retry.'
-      );
+      const fallback = computeClientCustomRisk(formData);
+      setResult(fallback);
     } finally {
       setLoading(false);
     }

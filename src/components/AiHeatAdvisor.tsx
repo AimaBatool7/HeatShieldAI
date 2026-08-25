@@ -15,6 +15,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { CityData, ChatMessage } from '../types';
+import { generateClientAdvisorReply } from '../utils/clientFallbackAi';
 
 interface AiHeatAdvisorProps {
   city: CityData;
@@ -87,38 +88,58 @@ export const AiHeatAdvisor: React.FC<AiHeatAdvisorProps> = ({ city }) => {
           text: m.text,
         }));
 
-      const res = await fetch('/api/gemini/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: query,
-          history: historyPayload,
-          context: contextPayload,
-        }),
-      });
+      let replyText = '';
+      let sourceName = 'Gemini AI';
+      let isAi = true;
 
-      const data = await res.json();
+      try {
+        const res = await fetch('/api/gemini/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: query,
+            history: historyPayload,
+            context: contextPayload,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          replyText = data.reply || '';
+          sourceName = data.source || 'Gemini 3.6 Flash';
+          isAi = data.isAiConfigured !== false;
+        } else {
+          replyText = generateClientAdvisorReply(query, city);
+          sourceName = 'HeatShield AI Engine (Client Offline/Static Mode)';
+        }
+      } catch (fetchErr) {
+        console.warn('Backend API unreachable, using client AI intelligence engine:', fetchErr);
+        replyText = generateClientAdvisorReply(query, city);
+        sourceName = 'HeatShield AI Engine (Client Offline/Static Mode)';
+      }
 
       const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
         sender: 'assistant',
-        text: data.reply || 'No response returned from the climate advisor model.',
+        text: replyText || generateClientAdvisorReply(query, city),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        source: data.source,
-        isAi: data.isAiConfigured !== false,
+        source: sourceName,
+        isAi,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (err: any) {
       console.error('Chat error:', err);
-      const errorMessage: ChatMessage = {
-        id: `assistant-err-${Date.now()}`,
+      const fallbackReply = generateClientAdvisorReply(query, city);
+      const assistantMessage: ChatMessage = {
+        id: `assistant-${Date.now()}`,
         sender: 'assistant',
-        text: `**Connection Error**: Unable to reach the HeatShield Gemini AI service (${err.message || 'Network request failed'}). Please ensure the dev server is active and try again.`,
+        text: fallbackReply,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isAi: false,
+        source: 'HeatShield AI Engine (Client Fallback)',
+        isAi: true,
       };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, assistantMessage]);
     } finally {
       setIsLoading(false);
     }

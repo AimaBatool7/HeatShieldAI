@@ -524,8 +524,14 @@ async function startServer() {
       appType: 'spa',
     });
     app.use(vite.middlewares);
+    
+    // Redirect root / to /HeatShieldAI/ for consistent base routing in dev if needed
+    app.get('/', (req, res, next) => {
+      res.redirect('/HeatShieldAI/');
+    });
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+    app.use('/HeatShieldAI', express.static(distPath));
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
